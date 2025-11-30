@@ -81,13 +81,14 @@ class UsageStats:
                     if isinstance(stats_data, dict):
                         normalized_filename = self._normalize_filename(filename)
 
-                        # Only load call_timestamps
+                        # Load call_timestamps and model_calls
                         usage_data = {
                             "call_timestamps": stats_data.get("call_timestamps", []),
+                            "model_calls": stats_data.get("model_calls", {}),
                         }
 
-                        # Only cache if there are actual timestamps
-                        if usage_data.get("call_timestamps"):
+                        # Only cache if there are actual timestamps or model calls
+                        if usage_data.get("call_timestamps") or usage_data.get("model_calls"):
                             stats_cache[normalized_filename] = usage_data
                             processed_count += 1
 
@@ -120,6 +121,7 @@ class UsageStats:
                 try:
                     stats_data = {
                         "call_timestamps": stats.get("call_timestamps", []),
+                        "model_calls": stats.get("model_calls", {}),
                     }
 
                     success = await self._storage_adapter.update_usage_stats(filename, stats_data)
@@ -155,6 +157,7 @@ class UsageStats:
 
             self._stats_cache[normalized_filename] = {
                 "call_timestamps": [],
+                "model_calls": {},
             }
             self._cache_dirty = True
 
@@ -195,12 +198,50 @@ class UsageStats:
                 current_time = datetime.now(timezone.utc).isoformat()
                 stats["call_timestamps"].append(current_time)
 
+                # Record model-specific call if model_name is provided
+                if model_name:
+                    # Normalize model name (remove prefixes like "假流式/", "流式抗截断/")
+                    normalized_model = model_name
+                    for prefix in ["假流式/", "流式抗截断/"]:
+                        if normalized_model.startswith(prefix):
+                            normalized_model = normalized_model[len(prefix):]
+                            break
+                    
+                    # Remove thinking suffixes
+                    for suffix in ["-maxthinking", "-nothinking", "-search"]:
+                        if normalized_model.endswith(suffix):
+                            normalized_model = normalized_model[:-len(suffix)]
+                            break
+                    
+                    # Initialize model_calls dict if not exists
+                    if "model_calls" not in stats:
+                        stats["model_calls"] = {}
+                    
+                    # Initialize model entry if not exists
+                    if normalized_model not in stats["model_calls"]:
+                        stats["model_calls"][normalized_model] = []
+                    
+                    # Add timestamp for this model
+                    stats["model_calls"][normalized_model].append(current_time)
+                    
+                    # Clean up old model timestamps
+                    cutoff_time = _get_24h_ago()
+                    stats["model_calls"][normalized_model] = [
+                        ts for ts in stats["model_calls"][normalized_model]
+                        if datetime.fromisoformat(ts) > cutoff_time
+                    ]
+                    
+                    # Remove model entry if no recent calls
+                    if not stats["model_calls"][normalized_model]:
+                        del stats["model_calls"][normalized_model]
+
                 self._cache_dirty = True
 
                 call_count = len(stats["call_timestamps"])
+                model_info = f", Model: {model_name}" if model_name else ""
                 log.debug(
                     f"Usage recorded - File: {normalized_filename}, "
-                    f"24h calls: {call_count}"
+                    f"24h calls: {call_count}{model_info}"
                 )
 
             except Exception as e:
@@ -223,17 +264,30 @@ class UsageStats:
                 stats = self._get_or_create_stats(normalized_filename)
                 self._cleanup_old_timestamps(stats)
 
+                model_calls = stats.get("model_calls", {})
+                model_stats = {}
+                for model, timestamps in model_calls.items():
+                    model_stats[model] = len(timestamps)
+                
                 return {
                     "filename": normalized_filename,
                     "calls_24h": len(stats.get("call_timestamps", [])),
+                    "model_calls_24h": model_stats,
                 }
             else:
                 # Return all statistics
                 all_stats = {}
                 for filename, stats in self._stats_cache.items():
                     self._cleanup_old_timestamps(stats)
+                    
+                    model_calls = stats.get("model_calls", {})
+                    model_stats = {}
+                    for model, timestamps in model_calls.items():
+                        model_stats[model] = len(timestamps)
+                    
                     all_stats[filename] = {
                         "calls_24h": len(stats.get("call_timestamps", [])),
+                        "model_calls_24h": model_stats,
                     }
 
                 return all_stats
@@ -267,12 +321,14 @@ class UsageStats:
                 normalized_filename = self._normalize_filename(filename)
                 if normalized_filename in self._stats_cache:
                     self._stats_cache[normalized_filename]["call_timestamps"] = []
+                    self._stats_cache[normalized_filename]["model_calls"] = {}
                     self._cache_dirty = True
                     log.info(f"Reset usage statistics for {normalized_filename}")
             else:
                 # Reset all statistics
                 for stats in self._stats_cache.values():
                     stats["call_timestamps"] = []
+                    stats["model_calls"] = {}
                 self._cache_dirty = True
                 log.info("Reset usage statistics for all credential files")
 

@@ -56,6 +56,7 @@ def gemini_request_to_openai(gemini_request: Dict[str, Any]) -> Dict[str, Any]:
         Dictionary in OpenAI API format
     """
     openai_request = {"model": gemini_request.get("model", "gemini-2.5-pro"), "messages": []}
+    openai_request = {"model": gemini_request.get("model", "gemini-3-pro-preview"), "messages": []}
 
     # Convert system instruction if present
     if "systemInstruction" in gemini_request:

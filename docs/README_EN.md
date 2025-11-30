@@ -159,8 +159,9 @@ This is a strict anti-commercial open source license. Please refer to the [LICEN
 All models have 1M context window capacity. Each credential file provides 1000 request quota.
 
 ### 🤖 Base Models
+- `gemini-3-pro-preview`
 - `gemini-2.5-pro`
-- `gemini-2.5-pro-preview-06-05`  
+- `gemini-2.5-pro-preview-06-05`
 - `gemini-2.5-pro-preview-05-06`
 
 ### 🧠 Thinking Models

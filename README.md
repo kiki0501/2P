@@ -161,8 +161,9 @@
 所有模型均具备 1M 上下文窗口容量。每个凭证文件提供 1000 次请求额度。
 
 ### 🤖 基础模型
+- `gemini-3-pro-preview`
 - `gemini-2.5-pro`
-- `gemini-2.5-pro-preview-06-05`  
+- `gemini-2.5-pro-preview-06-05`
 - `gemini-2.5-pro-preview-05-06`
 
 ### 🧠 思维模型（Thinking Models）

@@ -3549,6 +3549,39 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
             div.className = 'usage-card';
 
             const calls24h = stats.calls_24h || 0;
+            const modelCalls = stats.model_calls_24h || {};
+
+            // 构建模型统计HTML
+            let modelStatsHtml = '';
+            if (Object.keys(modelCalls).length > 0) {
+                modelStatsHtml = '<div class="usage-info" style="margin-top: 10px;">';
+                
+                // 按模型名称排序
+                const sortedModels = Object.keys(modelCalls).sort();
+                
+                for (const model of sortedModels) {
+                    const count = modelCalls[model];
+                    let modelColor = '#6c757d'; // 默认灰色
+                    
+                    // 为不同模型设置不同颜色
+                    if (model.includes('gemini-3-pro')) {
+                        modelColor = '#e74c3c'; // 红色 for 3-pro
+                    } else if (model.includes('gemini-2.5-pro')) {
+                        modelColor = '#3498db'; // 蓝色 for 2.5-pro
+                    } else if (model.includes('flash')) {
+                        modelColor = '#f39c12'; // 橙色 for flash
+                    }
+                    
+                    modelStatsHtml += `
+                        <div class="usage-info-item">
+                            <span class="usage-info-label">${model}</span>
+                            <span class="usage-info-value" style="font-size: 18px; font-weight: bold; color: ${modelColor};">${count}</span>
+                        </div>
+                    `;
+                }
+                
+                modelStatsHtml += '</div>';
+            }
 
             div.innerHTML = `
                 <div class="usage-header">
@@ -3557,10 +3590,12 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
 
                 <div class="usage-info">
                     <div class="usage-info-item" style="grid-column: 1 / -1;">
-                        <span class="usage-info-label">24小时内调用次数</span>
+                        <span class="usage-info-label">24小时内总调用次数</span>
                         <span class="usage-info-value" style="font-size: 24px; font-weight: bold; color: #007bff;">${calls24h}</span>
                     </div>
                 </div>
+
+                ${modelStatsHtml}
 
                 <div class="usage-actions">
                     <button class="usage-btn reset" onclick="resetSingleUsageStats('${filename}')">重置统计</button>

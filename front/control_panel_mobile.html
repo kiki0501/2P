@@ -2782,6 +2782,35 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
             div.style.marginBottom = '15px';
 
             const calls24h = stats.calls_24h || 0;
+            const modelCalls = stats.model_calls_24h || {};
+
+            // 构建模型统计HTML
+            let modelStatsHtml = '';
+            if (Object.keys(modelCalls).length > 0) {
+                // 按模型名称排序
+                const sortedModels = Object.keys(modelCalls).sort();
+                
+                for (const model of sortedModels) {
+                    const count = modelCalls[model];
+                    let modelColor = '#6c757d'; // 默认灰色
+                    
+                    // 为不同模型设置不同颜色
+                    if (model.includes('gemini-3-pro')) {
+                        modelColor = '#e74c3c'; // 红色 for 3-pro
+                    } else if (model.includes('gemini-2.5-pro')) {
+                        modelColor = '#3498db'; // 蓝色 for 2.5-pro
+                    } else if (model.includes('flash')) {
+                        modelColor = '#f39c12'; // 橙色 for flash
+                    }
+                    
+                    modelStatsHtml += `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 13px; color: #666;">${model}</span>
+                            <span style="font-size: 16px; font-weight: bold; color: ${modelColor};">${count}</span>
+                        </div>
+                    `;
+                }
+            }
 
             div.innerHTML = `
                 <div class="card-header">
@@ -2790,9 +2819,10 @@ docker run -e GCLI_CREDS_1='{"client_id":"..."}' \
 
                 <div style="margin: 10px 0;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="font-size: 14px; color: #666;">24小时内调用次数</span>
+                        <span style="font-size: 14px; color: #666;">24小时内总调用次数</span>
                         <span style="font-size: 20px; font-weight: bold; color: #007bff;">${calls24h}</span>
                     </div>
+                    ${modelStatsHtml}
                 </div>
 
                 <div class="card-actions">
